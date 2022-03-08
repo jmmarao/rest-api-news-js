@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="utf-8">
+    <title>Notícias pocket</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script>
+        function createNews() {
+            $.ajax( {
+                url : "https://tiagoifsp.ddns.net/noticias/noticias/cadastrar.php",
+                method : "post",
+                data : {
+                    titulo : $("input[id=title]").val(),
+                    subtitulo : $("input[id=subtitle]").val(),
+                    conteudo : $("textarea[id=description]").val(),
+                    idCategoria : $("select option:selected").attr("id")
+                },
+                success : function(news) {
+                    alert("Notícia registrada com sucesso");
+                    $("input[id=title]").val("");
+                    $("input[id=subtitle]").val("");
+                    $("textarea[id=description]").val("");
+                },
+                error : function(a, b, c) {
+                    alert("Não foi possível registrar a notícia.");
+                }
+            });
+        }
+
+        function readNews(anchor) {
+            let newsId = anchor.parent().attr("id");
+            let urlId = "https://tiagoifsp.ddns.net/noticias/noticias/listar.php?id=" + newsId;   
+            $.ajax( {
+                url : urlId,
+                method : "get",
+                success : function(dataReceived) {
+                    $("#newsContent").append($("<header>").text(anchor.text()).css("font-weight", "bold").css("font-size", "30px"));
+                    for(news of dataReceived) {
+                        createBoxNews(news);
+                    }
+                },
+                error : function(a, b, c) {
+                    alert("Erro na leitura da notícia selecionada.");
+                }  
+            });
+        }
+
+        function createBoxNews(news) {
+            $("#newsContent").append($("<article>").attr("class", "box").attr("id", news.id)
+                    .append($("<h3>").text(news.titulo).css("font-weight", "bold").css("font-size", "25px"))
+                        .append($("<h4>").text(news.subtitulo).css("font-weight", "bold").css("font-size", "18px"))
+                            .append($("<p>").text(news.conteudo))
+                                .append(isEditable(news))
+                                    .append(isDeleteable(news))
+                                        .append($("<footer>").text(news.data)));
+        }
+
+        function isEditable(news) {
+            if(news.editavel === 1) {
+                return $("<button>").text("Editar").attr("class", "button is-warning").click(function(e) {
+                    addFormUpdateFunctions(news);
+                });
+            }
+        }
+
+        function isDeleteable(news) {
+            if(news.editavel === 1) {
+                return $("<button>").text("Deletar").attr("class", "button is-danger").click(function(e) {
+                    deleteNews(news);
+             });
+            }
+        }
+
+        function addFormUpdateFunctions(news) {
+            $("#newsContent").hide();
+            $("#newsFormUpdate").show();
+            getNewsForm(news);
+            $("#newsFormUpdate > button").unbind().click(function(e) {
+                updateNews(news);
+            });
+        }
+
+        function getNewsForm(news) {
+            let subjectId = news.idCategoria;
+            let subjectName = "#" + subjectId;
+            let optionName = $("select[id=subjectUpdate]").find(subjectName).text();
+            $("select[id=subjectUpdate]").val(optionName);
+            $("input[id=titleUpdate]").val(news.titulo);
+            $("input[id=subtitleUpdate]").val(news.subtitulo);
+            $("textarea[id=descriptionUpdate]").val(news.conteudo);
+        }
+
+        function updateNews(news) {
+            let newsId = news.id;
+            let urlId = "https://tiagoifsp.ddns.net/noticias/noticias/editar.php?id=" + newsId;
+            $.ajax( {
+                url : urlId,
+                method : "post",
+                data : {
+                    id : newsId,
+                    titulo : $("input[id=titleUpdate]").val(),
+                    subtitulo : $("input[id=subtitleUpdate]").val(),
+                    conteudo : $("textarea[id=descriptionUpdate]").val(),
+                    idCategoria : $("select[id=subjectUpdate] option:selected").attr("id")                    
+                },
+                success : function(dataReceived) {
+                    alert("Notícia alterada com sucesso.");
+                    $("input[id=titleUpdate]").val("");
+                    $("input[id=priceUpdate]").val("");
+                    $("textarea[id=descriptionUpdate]").val("");
+                    $("#newsFormUpdate").hide();
+                },
+                error : function(a, b, c) {
+                    alert("Erro na alteração da notícia selecionada.")
+                }
+            });
+        }
+
+        function deleteNews(news) {
+            let newsId = news.id;
+            let urlId = "https://tiagoifsp.ddns.net/noticias/noticias/deletar.php?id=" + newsId;
+            $.ajax( {
+                url : urlId,
+                method : "get",
+                success : function(dataReceived) {                    
+                    alert("Notícia removido.");
+                    $(news).remove();
+                    $("#newsContent").hide();
+                },
+                error : function(a, b, c) {
+                    alert("Erro na remoção da notícia selecionada.");
+                }
+            });
+        }
+
+        function fillMenu() {
+            $.ajax( {
+                url : "https://tiagoifsp.ddns.net/noticias/categorias/listar.php",
+                method : "get",
+                success : function(dataReceived) {
+                    for(subject of dataReceived) {
+                        menuLine(subject);
+                        getSubjectNews(subject);
+                    }
+                },
+                error : function(a, b, c) {
+                    console.log("Erro na leitura das categorias.");
+                }
+            });            
+        }
+
+        function getSubjectNews(subject) {
+            let optionTag = $("<option>");
+            optionTag.append(subject.nome).attr("id", subject.id);
+            $("select").append(optionTag);                
+        }
+
+        function menuLine(subject) {
+            let liTag = $("<li>");
+            let anchorTag = $("<a>");
+            liTag.append(anchorTag.text(subject.nome));
+            liTag.attr("id", subject.id);
+            $("ul").append(liTag);
+        }
+
+        function addFormFunctions() {
+            $("#newsForm > button").click(function(e) {
+                createNews();
+            });
+        }
+
+        function treatAnchor(anchor) {
+            let anchorContent = anchor.text();
+            switch(anchorContent) {
+                case "Cadastrar":
+                    $("#newsContent").hide();
+                    $("#newsForm").show();
+                    break;
+                default:
+                    $("#newsForm").hide();
+                    $("#newsContent").empty().show();
+                    readNews(anchor)
+                    break;
+            }
+        }
+
+        $(document).ready(function () {
+            $("#newsForm").hide();
+            $("#newsFormUpdate").hide();
+            $("#newsContent").hide();
+            addFormFunctions();
+            fillMenu();
+            $(document).on("click", "a", function(event) {
+                event.preventDefault();
+                treatAnchor($(this));
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <!-- Cabeçalho -->
+    <div class="columns">
+        <div class="column is-full">
+            <header><h1>Pocket News</h1></header>
+        </div>
+    </div>
+
+    <!-- Área central da página -->
+    
+    <div class="columns">
+
+        <!-- Menu -->
+        <div class="column is-one-fifth">
+            <h2><b>Menu</b></h2>
+            <nav>                
+                <ul>
+                    <li><a>Cadastrar</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Corpo do site -->
+        <div class="column">
+            <section id="newsForm">
+                <header><h2>Cadastrar Nova Notícia</h2></header>
+                <form>
+                    <fieldset>
+                        <p>
+                            Categoria
+                            <br><select name="subjectNews" id="subject" class="select">
+                                <option>---------------</option>
+                            </select>
+                        </p>
+                        <p>
+                            Título da notícia
+                            <br><input type="text" id="title" name="titleNews">
+                        </p>
+                        <p>
+                            Subtítulo da notícia
+                            <br><input type="text" id="subtitle" name="subtitleNews">
+                        </p>
+                        <p>
+                            Conteúdo da notícia
+                            <br><textarea rows="10" cols="147" id="description" name="newsDescription"></textarea>
+                        </p>                                        
+                    </fieldset>
+                </form>
+                <button class="button is-success">Cadastrar</button>
+            </section>
+
+            <section id="newsContent">
+                <!-- Seção reservada para as notícias. Abaixo está exemplificado a estrutura considerada -->
+                <!-- <header><h2>Assunto</h2></header>
+                <article class="box">
+                    <h3>Título da notícia</h3>
+                    <h4>Subtítulo da notícia</h4>
+                    <p>
+                        Conteúdo da notícia
+                    </p>
+                    <button>Editar</button>
+                    <button>Deletar</button>
+                    <footer>Horário</footer>
+                </article> -->
+            </section>
+
+            <section id="newsFormUpdate">
+                <header><h2>Editar Notícia</h2></header>
+                <form>
+                    <fieldset>
+                        <p>
+                            Categoria
+                            <br><select name="subjectNewsUpdate" id="subjectUpdate" class="selectUpdate">
+                                <option id="100">---------------</option>
+                            </select>
+                        </p>
+                        <p>
+                            Título da notícia
+                            <br><input type="text" id="titleUpdate" name="titleNewsUpdate">
+                        </p>
+                        <p>
+                            Subtítulo da notícia
+                            <br><input type="text" id="subtitleUpdate" name="subtitleNewsUpdate">
+                        </p>
+                        <p>
+                            Conteúdo da notícia
+                            <br><textarea rows="10" cols="147" id="descriptionUpdate" name="newsDescription"></textarea>
+                        </p>                                        
+                    </fieldset>
+                </form>
+                <button class="button is-warning">Editar</button>
+            </section>
+        </div>
+    </div>
+    
+    <!-- Rodapé -->
+    <footer>
+        <p>Desenvolvido por João Mateus Marão Domingues | E-mail: joao.mateus@aluno.ifsp.edu.br</p>
+    </footer>    
+</body>
+</html>
